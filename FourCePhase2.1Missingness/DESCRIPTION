@@ -8,6 +8,7 @@ Authors@R:
            email = "first.last@example.com",
            comment = c(ORCID = "YOUR-ORCID-ID"))
 Description: What the package does (one paragraph).
+Imports: tidyverse,ggplot2,readr,dplyr,tidyr,forcats,DT,tibble,cowplot,ggridges,FourCePhase2.1Data 
 License: What license it uses
 Encoding: UTF-8
 LazyData: true

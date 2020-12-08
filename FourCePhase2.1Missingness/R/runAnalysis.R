@@ -9,7 +9,7 @@ runAnalysis <- function() {
     ## make sure this instance has the latest version of the quality control and data wrangling code available
     devtools::install_github("https://github.com/covidclinical/Phase2.1DataRPackage", subdir="FourCePhase2.1Data", upgrade=FALSE)
 
-    ## get the site identifier assocaited with the files stored in the /4ceData/Input directory that 
+    ## get the site identifier assocaited with the files stored in the /4ceData/Input directory that
     ## is mounted to the container
     currSiteId = FourCePhase2.1Data::getSiteId()
 
@@ -18,18 +18,9 @@ runAnalysis <- function() {
 
     ## DO NOT CHANGE ANYTHING ABOVE THIS LINE
 
-    ## To Do: implement analytic workflow, saving results to a site-specific 
+    ## To Do: implement analytic workflow, saving results to a site-specific
     ## file to be sent to the coordinating site later via submitAnalysis()
     #SET UP
-    library(ggplot2)
-    library(readr)
-    library(dplyr)
-    library(tidyr)
-    library(forcats)
-    library(DT)
-    library(tibble)
-    library(cowplot)
-    library(ggridges)
     theme_set(theme_bw() +
                   theme(legend.title = element_blank(),
                         panel.grid.minor = element_blank()))
@@ -37,14 +28,31 @@ runAnalysis <- function() {
     ## Read in files
     #and convert to wide format
     #4CE long format Labs Data
-    patient_obs <- read_csv('penn-data/labs_long_thrombo_v2.csv') %>%
-        mutate(severity = (severe_ind == 1) %>%
-                   as_factor() %>%
-                   fct_recode('nonsevere' = 'FALSE', 'severe' = 'TRUE'))
+    dir.input=FourCePhase2.1Data::getInputDataDirectoryName()
+
+    patient_obs <- readr::read_csv( paste0( dir.input, '/LocalPatientObservations.csv'))
+    patient_obs <- patient_obs[ patient_obs$concept_type == "LAB-LOINC" &
+                                    patient_obs$days_since_admission >= 0,]
+
+    severity <- readr::read_csv( paste0( dir.input, '/LocalPatientClinicalCourse.csv'))
+    severity <- severity[ , c("patient_num", "days_since_admission", "severe")]
+    colnames( severity ) <- c("patient_num", "days_since_admission", "severity")
+    patient_obs <- full_join( patient_obs, severity)
+
+    patient_obs$severity <- as.factor( ifelse( patient_obs$severity == 1, "severe", "nonsevere") )
+
+
     #Code, Descriptions and Ranges
-    lab_mapping <- read_csv('public-data/loinc-map.csv')
-    lab_bounds <- read_csv('public-data/lab_bounds.csv')
+    #lab_mapping <- read_csv('public-data/loinc-map.csv')
+    lab_mapping <- readr::read_csv( system.file("extdata",
+                "loinc-map.csv",
+                package="FourCePhase2.1Missingness"))
+    #lab_bounds <- read_csv('public-data/lab_bounds.csv')
     # load('public-data/code.dict.rda')
+    lab_bounds <- readr::read_csv( system.file("extdata",
+                                         "lab_bounds.csv",
+                                         package="FourCePhase2.1Missingness"))
+
 
     patient_obs_wide <- patient_obs %>%
         left_join(lab_bounds, by = c('concept_code' = 'LOINC')) %>%
@@ -84,8 +92,8 @@ runAnalysis <- function() {
             legend.key.width = unit(6, 'mm'),
             legend.key.height = unit(4, 'mm'),
             legend.position = 'bottom')
-    plot_grid(n_values, na_prob, nrow = 1, axis = 'b', align = 'h')
-    penn_na_df <- na_df
+    cowplot::plot_grid(n_values, na_prob, nrow = 1, axis = 'b', align = 'h')
+    site_na_df <- na_df
 
     # number of patients per lab value
     get_pat_labs <- function(labi){
@@ -101,7 +109,7 @@ runAnalysis <- function() {
     }
     patient_lab <- lapply(unique(patient_obs_long$lab), get_pat_labs) %>%
         bind_rows()
-    penn_patient_lab <- patient_lab
+    site_patient_lab <- patient_lab
     melt_patient_lab <- patient_lab[rep(1:nrow(patient_lab), patient_lab$counts), ]
 
     melt_patient_lab %>%
@@ -141,20 +149,20 @@ runAnalysis <- function() {
         mutate(time_obs = max_day - min_day) %>%
         select(-patient_num) %>%
         add_count(severity, name = 'n_severity')
-    penn_agg_n_values <- days_count_min_max %>%
+    site_agg_n_values <- days_count_min_max %>%
         count(severity, n_severity, n_values,
               name = 'n_nvals')
-    penn_agg_max_day <- days_count_min_max %>%
+    site_agg_max_day <- days_count_min_max %>%
         count(severity, n_severity, max_day,
               name = 'n_maxday')
-    (n_severe <- sum(days_count_min_max$severity == 'severe'))
-    (n_nonsevere <- sum(days_count_min_max$severity == 'nonsevere'))
-    save(penn_na_df, penn_agg_n_values, penn_agg_max_day, penn_patient_lab,
-         file = 'results/penn-results.Rdata')
+    (n_severe <- sum(days_count_min_max$severity == 'severe', na.rm = TRUE))
+    (n_nonsevere <- sum(days_count_min_max$severity == 'nonsevere', na.rm = TRUE))
+    save(site_na_df, site_agg_n_values, site_agg_max_day, site_patient_lab,
+         file = paste0('results/',currSiteId,'-results.Rdata'))
 
 
     ## Histogram of the number of days with at least one observation
-    penn_agg_n_values %>%
+    site_agg_n_values %>%
         ggplot(aes(x = n_values, y = n_nvals, fill = severity)) +
         geom_col(alpha = 0.5) +
         scale_fill_brewer(palette = 'Dark2', direction = -1) +
@@ -165,7 +173,7 @@ runAnalysis <- function() {
     ## Histogram of length of stay
     ##i.e. last day with observation-first day with observation
     ##We need to check for readmission here.
-    penn_agg_max_day %>%
+    site_agg_max_day %>%
         ggplot(aes(x = max_day, y = n_maxday, fill = severity)) +
         geom_col(alpha = 0.5) +
         scale_fill_brewer(palette = 'Dark2', direction = -1) +
@@ -210,7 +218,7 @@ runAnalysis <- function() {
                'median_obs_per_non_severe_patient' = nonsevere) %>%
         select(lab, total_obs, total_patients, starts_with('med'), starts_with('n_'))
     lab_medians %>%
-        datatable(rownames = FALSE)
+        DT::datatable(rownames = FALSE)
 
     lab_medians %>%
         select(lab, total_obs, total_patients) %>%
@@ -303,7 +311,7 @@ runAnalysis <- function() {
         )
 
     ### Denominator: total number of patients, total number of non-severe patients,
-    and total number of severe patients, respectively.
+    ### and total number of severe patients, respectively.
 
     per_lab %>%
         select(lab, n_obs, severe, nonsevere) %>%
@@ -324,17 +332,17 @@ runAnalysis <- function() {
               legend.position = c(0.9, 0.2),
               axis.ticks.y = element_blank()
         )
-    
+
     ## Save results to appropriately named files for submitAnalysis(), e.g.:
     #write.csv(
-    #    matrix(rnorm(100), ncol=5), 
+    #    matrix(rnorm(100), ncol=5),
     #    file=file.path(getProjectOutputDirectory(), paste0(currSiteId, "_ResultTable.csv"))
     #)
 
     #write.table(
-    #    matrix(rnorm(12), ncol=3), 
+    #    matrix(rnorm(12), ncol=3),
     #    file=file.path(getProjectOutputDirectory(), paste0(currSiteId, "_ModelParameters.txt"))
     #)
-    
+
 }
 
