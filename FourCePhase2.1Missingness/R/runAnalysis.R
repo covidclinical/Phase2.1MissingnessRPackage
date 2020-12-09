@@ -22,8 +22,8 @@ runAnalysis <- function() {
     ## file to be sent to the coordinating site later via submitAnalysis()
     #SET UP
     ggplot2::theme_set(ggplot2::theme_bw() +
-                  ggplot2::theme(legend.title = element_blank(),
-                        panel.grid.minor = element_blank()))
+                  ggplot2::theme(legend.title = ggplot2::element_blank(),
+                        panel.grid.minor = ggplot2::element_blank()))
 
     ## Read in files
     #and convert to wide format
