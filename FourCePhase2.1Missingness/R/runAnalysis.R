@@ -4,7 +4,7 @@
 #' @keywords 4CE
 #' @export
 
-runAnalysis <- function() {
+runAnalysis <- function( dir.output ) {
 
     ## make sure this instance has the latest version of the quality control and data wrangling code available
     devtools::install_github("https://github.com/covidclinical/Phase2.1DataRPackage", subdir="FourCePhase2.1Data", upgrade=FALSE)
@@ -72,22 +72,22 @@ runAnalysis <- function() {
         `!`
     na_df <- data.frame(value_existed = colSums(na_stats),
                         prop_existed = colMeans(na_stats)) %>%
-        rownames_to_column('lab') %>%
+        tibble::rownames_to_column('lab') %>%
         mutate(prop_na = 1 - prop_existed,
-               lab = fct_reorder(lab, value_existed))
+               lab = forcats::fct_reorder(lab, value_existed))
     n_values <- na_df %>%
-        ggplot(aes(x = value_existed, y = lab)) +
-        geom_col() +
-        labs(x = 'Number of values', y = NULL)
+        ggplot2::ggplot(aes(x = value_existed, y = lab)) +
+        ggplot2::geom_col() +
+        ggplot2::labs(x = 'Number of values', y = NULL)
     na_prob <- na_df %>%
         rename('Valid value' = prop_existed, 'NA' = prop_na) %>%
         pivot_longer(c(`Valid value`, `NA`)) %>%
-        ggplot(aes(x = value, y = lab, fill = name)) +
-        geom_col() +
-        scale_fill_discrete(guide = guide_legend(reverse = TRUE)) +
-        labs(x = 'Proportion', y = NULL) +
+        ggplot2::ggplot(aes(x = value, y = lab, fill = name)) +
+        ggplot2::geom_col() +
+        ggplot2::scale_fill_discrete(guide = guide_legend(reverse = TRUE)) +
+        ggplot2::labs(x = 'Proportion', y = NULL) +
         # guides(fill = guide_legend(reverse = TRUE))
-        theme(
+        ggplot2::theme(
             axis.text.y = element_blank(),
             legend.key.width = unit(6, 'mm'),
             legend.key.height = unit(4, 'mm'),
@@ -115,12 +115,12 @@ runAnalysis <- function() {
     melt_patient_lab %>%
         filter(breaks < 30) %>%
         mutate(lab = fct_infreq(lab)) %>%
-        ggplot(aes(x = breaks, y = lab, fill = lab, height = ..count..)) +
+        ggplot2::ggplot(aes(x = breaks, y = lab, fill = lab, height = ..count..)) +
         # geom_density_ridges(stat = "identity", scale = 2) +
         ggridges::geom_ridgeline(stat="binline", binwidth=1, scale = 0.001) +
         # scale_color_viridis_d(option = 'C') +
-        scale_fill_viridis_d(option = 'C', guide = FALSE) +
-        labs(y = NULL) +
+        ggplot2::scale_fill_viridis_d(option = 'C', guide = FALSE) +
+        ggplot2::labs(y = NULL) +
         # coord_flip() +
         # facet_wrap(~ lab, scales = 'free') +
         NULL
@@ -158,15 +158,15 @@ runAnalysis <- function() {
     (n_severe <- sum(days_count_min_max$severity == 'severe', na.rm = TRUE))
     (n_nonsevere <- sum(days_count_min_max$severity == 'nonsevere', na.rm = TRUE))
     save(site_na_df, site_agg_n_values, site_agg_max_day, site_patient_lab,
-         file = paste0('results/',currSiteId,'-results.Rdata'))
+         file = paste0( dir.output,'/',currSiteId,'-results.Rdata'))
 
 
     ## Histogram of the number of days with at least one observation
     site_agg_n_values %>%
-        ggplot(aes(x = n_values, y = n_nvals, fill = severity)) +
-        geom_col(alpha = 0.5) +
-        scale_fill_brewer(palette = 'Dark2', direction = -1) +
-        labs(fill = 'Severe?',
+        ggplot2::ggplot(aes(x = n_values, y = n_nvals, fill = severity)) +
+        ggplot2::geom_col(alpha = 0.5) +
+        ggplot2::scale_fill_brewer(palette = 'Dark2', direction = -1) +
+        ggplot2::labs(fill = 'Severe?',
              x = "Number of days with data",
              y = "Count")
 
@@ -174,10 +174,10 @@ runAnalysis <- function() {
     ##i.e. last day with observation-first day with observation
     ##We need to check for readmission here.
     site_agg_max_day %>%
-        ggplot(aes(x = max_day, y = n_maxday, fill = severity)) +
-        geom_col(alpha = 0.5) +
-        scale_fill_brewer(palette = 'Dark2', direction = -1) +
-        labs(fill = 'Severe?',
+        ggplot2::ggplot(aes(x = max_day, y = n_maxday, fill = severity)) +
+        ggplot2::geom_col(alpha = 0.5) +
+        ggplot2::scale_fill_brewer(palette = 'Dark2', direction = -1) +
+        ggplot2::labs(fill = 'Severe?',
              x = "Number of days with data",
              y = "Count")
 
@@ -222,11 +222,11 @@ runAnalysis <- function() {
 
     lab_medians %>%
         dplyr::select(lab, total_obs, total_patients) %>%
-        pivot_longer(- lab) %>%
-        ggplot(aes(x = value, y = fct_reorder(lab, value))) +
-        geom_col() +
-        facet_grid(cols = vars(name), scales = 'free_x', space = 'free') +
-        labs(y = NULL)
+        tidyr::pivot_longer(- lab) %>%
+        ggplot2::ggplot(aes(x = value, y = forcats::fct_reorder(lab, value))) +
+        ggplot2::geom_col() +
+        ggplot2::facet_grid(cols = vars(name), scales = 'free_x', space = 'free') +
+        ggplot2::labs(y = NULL)
 
     # In the figure below:
     #
@@ -236,17 +236,17 @@ runAnalysis <- function() {
     # - Black solid line: `upper bound outlier` (QC)
 
     patient_obs_long %>%
-        left_join(lab_bounds, by = c('lab' = 'short_name')) %>%
-        ggplot(aes(y = severity, x = value, fill = severity)) +
-        geom_violin() +
-        scale_fill_brewer(palette = 'Dark2', guide = guide_legend(reverse = TRUE)) +
-        labs(y = NULL, x = NULL) +
-        geom_vline(aes(xintercept = `Reference Low`), linetype = 'dashed', color = 'grey') +
-        geom_vline(aes(xintercept = `Reference High`), color = 'grey') +
-        geom_vline(aes(xintercept = LB), linetype = 'dashed') +
-        geom_vline(aes(xintercept = UB)) +
-        facet_wrap(~ lab, scales = 'free', ncol = 2, strip.position = 'left') +
-        theme(axis.text.y = element_blank())
+        dplyr::left_join(lab_bounds, by = c('lab' = 'short_name')) %>%
+        ggplot2::ggplot(aes(y = severity, x = value, fill = severity)) +
+        ggplot2::geom_violin() +
+        ggplot2::scale_fill_brewer(palette = 'Dark2', guide = guide_legend(reverse = TRUE)) +
+        ggplot2::labs(y = NULL, x = NULL) +
+        ggplot2::geom_vline(aes(xintercept = `Reference Low`), linetype = 'dashed', color = 'grey') +
+        ggplot2::geom_vline(aes(xintercept = `Reference High`), color = 'grey') +
+        ggplot2::geom_vline(aes(xintercept = LB), linetype = 'dashed') +
+        ggplot2::geom_vline(aes(xintercept = UB)) +
+        ggplot2::facet_wrap(~ lab, scales = 'free', ncol = 2, strip.position = 'left') +
+        ggplot2::theme(axis.text.y = element_blank())
 
     ## Missing data heatmap
     ##"Binned" heatmap
@@ -267,15 +267,15 @@ runAnalysis <- function() {
             'Severe patients' = 'severe',
             'Non-severe patients' = 'nonsevere'
         )) %>%
-        ggplot(aes(x = obs_bin, fill = value, y = fct_reorder(lab, value))) +
-        geom_tile(colour = "white", size = 0.2) +
-        geom_text(aes(label = value), colour = "white", size = 2) +
-        scale_y_discrete(expand = c(0, 0))+
-        scale_fill_gradient(low = "lightgrey", high = "darkblue") +
-        facet_wrap(~ name, nrow = 1) +
-        labs(x = 'Binned number of values a patient has for each lab',
+        ggplot2::ggplot(aes(x = obs_bin, fill = value, y = forcats::fct_reorder(lab, value))) +
+        ggplot2::geom_tile(colour = "white", size = 0.2) +
+        ggplot2::geom_text(aes(label = value), colour = "white", size = 2) +
+        ggplot2::scale_y_discrete(expand = c(0, 0))+
+        ggplot2::scale_fill_gradient(low = "lightgrey", high = "darkblue") +
+        ggplot2::facet_wrap(~ name, nrow = 1) +
+        ggplot2::labs(x = 'Binned number of values a patient has for each lab',
              y = NULL, fill = '# patients') +
-        theme(panel.grid.major = element_blank(),
+        ggplot2::theme(panel.grid.major = element_blank(),
               legend.position = c(0.93, 0.2),
               axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5),
               axis.ticks.y = element_blank()
@@ -295,16 +295,16 @@ runAnalysis <- function() {
             'Compared to all severe patients' = 'prop_severe',
             'Compared to all non-severe patients' = 'prop_nonsevere'
         )) %>%
-        ggplot(aes(x = obs_bin, fill = value, y = fct_reorder(lab, value))) +
-        geom_tile(colour = "white", size = 0.2) +
-        geom_text(aes(label = round(value, 2)), colour = "white", size = 2) +
-        scale_y_discrete(expand = c(0, 0)) +
-        scale_fill_gradient(low = "lightgrey", high = "darkblue",
+        ggplot2::ggplot(aes(x = obs_bin, fill = value, y = forcats::fct_reorder(lab, value))) +
+        ggplot2::geom_tile(colour = "white", size = 0.2) +
+        ggplot2::geom_text(aes(label = round(value, 2)), colour = "white", size = 2) +
+        ggplot2::scale_y_discrete(expand = c(0, 0)) +
+        ggplot2::scale_fill_gradient(low = "lightgrey", high = "darkblue",
                             labels = scales::percent_format(accuracy = 1L)) +
-        facet_wrap(~ name, nrow = 1) +
-        labs(x = 'Binned number of values a patient has for each lab',
+        ggplot2::facet_wrap(~ name, nrow = 1) +
+        ggplot2::labs(x = 'Binned number of values a patient has for each lab',
              y = NULL, fill = '% patients') +
-        theme(panel.grid.major = element_blank(),
+        ggplot2::theme(panel.grid.major = element_blank(),
               legend.position = c(0.93, 0.2),
               axis.text.x = element_text(angle = 90, hjust = 1, vjust = 0.5),
               axis.ticks.y = element_blank()
@@ -317,18 +317,18 @@ runAnalysis <- function() {
         dplyr::select(lab, n_obs, severe, nonsevere) %>%
         filter(n_obs <= 90) %>%
         pivot_longer(c(severe, nonsevere)) %>%
-        mutate(lab = fct_reorder(lab, n_obs),
+        mutate(lab = forcats::fct_reorder(lab, n_obs),
                name = name %>% fct_recode(
                    'Severe patients' = 'severe',
                    'Non-severe patients' = 'nonsevere'
                )) %>%
-        ggplot(aes(x = n_obs, fill = name, y = value)) +
-        geom_col() +
-        scale_fill_brewer(palette = 'Dark2', direction = -1) +
-        facet_wrap(~ lab, scales = 'free') +
-        labs(x = 'Number of values a patient has for each lab',
+        ggplot2::ggplot(aes(x = n_obs, fill = name, y = value)) +
+        ggplot2::geom_col() +
+        ggplot2::scale_fill_brewer(palette = 'Dark2', direction = -1) +
+        ggplot2::facet_wrap(~ lab, scales = 'free') +
+        ggplot2::labs(x = 'Number of values a patient has for each lab',
              y = NULL, fill = '# patients') +
-        theme(panel.grid.major = element_blank(),
+        ggplot2::theme(panel.grid.major = element_blank(),
               legend.position = c(0.9, 0.2),
               axis.ticks.y = element_blank()
         )
