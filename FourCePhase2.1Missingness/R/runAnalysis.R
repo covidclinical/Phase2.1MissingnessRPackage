@@ -37,7 +37,7 @@ runAnalysis <- function() {
     severity <- readr::read_csv( paste0( dir.input, '/LocalPatientClinicalCourse.csv'))
     severity <- severity[ , c("patient_num", "days_since_admission", "severe")]
     colnames( severity ) <- c("patient_num", "days_since_admission", "severity")
-    patient_obs <- full_join( patient_obs, severity)
+    patient_obs <- dplyr::full_join( patient_obs, severity)
 
     patient_obs$severity <- as.factor( ifelse( patient_obs$severity == 1, "severe", "nonsevere") )
 
