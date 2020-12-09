@@ -56,7 +56,7 @@ runAnalysis <- function() {
 
     patient_obs_wide <- patient_obs %>%
         left_join(lab_bounds, by = c('concept_code' = 'LOINC')) %>%
-        select(- concept_code) %>%
+        dplyr::select(- concept_code) %>%
         pivot_wider(id_cols = c(patient_num, days_since_admission, severity),
                     names_from = short_name,
                     values_from = value,
@@ -67,7 +67,7 @@ runAnalysis <- function() {
                      values_drop_na = TRUE)
     #check NAs in the Wide format
     na_stats <- patient_obs_wide %>%
-        select(- c(patient_num, days_since_admission, severity)) %>%
+        dplyr::select(- c(patient_num, days_since_admission, severity)) %>%
         is.na() %>%
         `!`
     na_df <- data.frame(value_existed = colSums(na_stats),
@@ -117,7 +117,7 @@ runAnalysis <- function() {
         mutate(lab = fct_infreq(lab)) %>%
         ggplot(aes(x = breaks, y = lab, fill = lab, height = ..count..)) +
         # geom_density_ridges(stat = "identity", scale = 2) +
-        geom_ridgeline(stat="binline", binwidth=1, scale = 0.001) +
+        ggridges::geom_ridgeline(stat="binline", binwidth=1, scale = 0.001) +
         # scale_color_viridis_d(option = 'C') +
         scale_fill_viridis_d(option = 'C', guide = FALSE) +
         labs(y = NULL) +
@@ -147,7 +147,7 @@ runAnalysis <- function() {
             .groups = 'drop'
         ) %>%
         mutate(time_obs = max_day - min_day) %>%
-        select(-patient_num) %>%
+        dplyr::select(-patient_num) %>%
         add_count(severity, name = 'n_severity')
     site_agg_n_values <- days_count_min_max %>%
         count(severity, n_severity, n_values,
@@ -207,21 +207,21 @@ runAnalysis <- function() {
         group_by(severity) %>%
         mutate(each_med_obs_per_patient = median(n_obs_patients)) %>%
         ungroup(severity) %>%
-        select(- c(days_since_admission, value)) %>%
+        dplyr::select(- c(days_since_admission, value)) %>%
         distinct() %>%
         group_by(lab) %>%
         mutate(across(contains('n_greater'), sum)) %>%
-        select(- c(n_obs_patients, patient_num)) %>%
+        dplyr::select(- c(n_obs_patients, patient_num)) %>%
         distinct() %>%
         pivot_wider(names_from = severity, values_from = each_med_obs_per_patient) %>%
         rename('median_obs_per_severe_patient' = severe,
                'median_obs_per_non_severe_patient' = nonsevere) %>%
-        select(lab, total_obs, total_patients, starts_with('med'), starts_with('n_'))
+        dplyr::select(lab, total_obs, total_patients, starts_with('med'), starts_with('n_'))
     lab_medians %>%
         DT::datatable(rownames = FALSE)
 
     lab_medians %>%
-        select(lab, total_obs, total_patients) %>%
+        dplyr::select(lab, total_obs, total_patients) %>%
         pivot_longer(- lab) %>%
         ggplot(aes(x = value, y = fct_reorder(lab, value))) +
         geom_col() +
@@ -260,7 +260,7 @@ runAnalysis <- function() {
                   severe = sum(severe),
                   nonsevere = sum(nonsevere),
                   .groups = 'drop') %>%
-        select(lab, obs_bin, both_severities, severe, nonsevere) %>%
+        dplyr::select(lab, obs_bin, both_severities, severe, nonsevere) %>%
         pivot_longer(c(both_severities, severe, nonsevere)) %>%
         mutate(name = name %>% fct_recode(
             'All patients' = 'both_severities',
@@ -288,7 +288,7 @@ runAnalysis <- function() {
                   prop_severe = sum(prop_severe),
                   prop_nonsevere = sum(prop_nonsevere),
                   .groups = 'drop') %>%
-        select(lab, obs_bin, prop_both, prop_severe, prop_nonsevere) %>%
+        dplyr::select(lab, obs_bin, prop_both, prop_severe, prop_nonsevere) %>%
         pivot_longer(c(prop_both, prop_severe, prop_nonsevere)) %>%
         mutate(name = name %>% fct_recode(
             'Compared to all patients' = 'prop_both',
@@ -314,7 +314,7 @@ runAnalysis <- function() {
     ### and total number of severe patients, respectively.
 
     per_lab %>%
-        select(lab, n_obs, severe, nonsevere) %>%
+        dplyr::select(lab, n_obs, severe, nonsevere) %>%
         filter(n_obs <= 90) %>%
         pivot_longer(c(severe, nonsevere)) %>%
         mutate(lab = fct_reorder(lab, n_obs),
