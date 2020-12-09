@@ -55,14 +55,14 @@ runAnalysis <- function( dir.output ) {
 
 
     patient_obs_wide <- patient_obs %>%
-        left_join(lab_bounds, by = c('concept_code' = 'LOINC')) %>%
+        dplyr::left_join(lab_bounds, by = c('concept_code' = 'LOINC')) %>%
         dplyr::select(- concept_code) %>%
-        pivot_wider(id_cols = c(patient_num, days_since_admission, severity),
+        tidyr::pivot_wider(id_cols = c(patient_num, days_since_admission, severity),
                     names_from = short_name,
                     values_from = value,
                     values_fn = mean)
     patient_obs_long <- patient_obs_wide %>%
-        pivot_longer(-c(patient_num, days_since_admission, severity),
+        tidyr::pivot_longer(-c(patient_num, days_since_admission, severity),
                      names_to = 'lab', values_to = 'value',
                      values_drop_na = TRUE)
     #check NAs in the Wide format
@@ -81,7 +81,7 @@ runAnalysis <- function( dir.output ) {
         ggplot2::labs(x = 'Number of values', y = NULL)
     na_prob <- na_df %>%
         rename('Valid value' = prop_existed, 'NA' = prop_na) %>%
-        pivot_longer(c(`Valid value`, `NA`)) %>%
+        tidyr::pivot_longer(c(`Valid value`, `NA`)) %>%
         ggplot2::ggplot(aes(x = value, y = lab, fill = name)) +
         ggplot2::geom_col() +
         ggplot2::scale_fill_discrete(guide = guide_legend(reverse = TRUE)) +
@@ -92,7 +92,10 @@ runAnalysis <- function( dir.output ) {
             legend.key.width = unit(6, 'mm'),
             legend.key.height = unit(4, 'mm'),
             legend.position = 'bottom')
+
+    png( filename = paste0(dir.output, "/plot1.png"))
     cowplot::plot_grid(n_values, na_prob, nrow = 1, axis = 'b', align = 'h')
+    dev.off()
     site_na_df <- na_df
 
     # number of patients per lab value
@@ -114,7 +117,7 @@ runAnalysis <- function( dir.output ) {
 
     melt_patient_lab %>%
         filter(breaks < 30) %>%
-        mutate(lab = fct_infreq(lab)) %>%
+        mutate(lab = forcats::fct_infreq(lab)) %>%
         ggplot2::ggplot(aes(x = breaks, y = lab, fill = lab, height = ..count..)) +
         # geom_density_ridges(stat = "identity", scale = 2) +
         ggridges::geom_ridgeline(stat="binline", binwidth=1, scale = 0.001) +
@@ -189,7 +192,7 @@ runAnalysis <- function( dir.output ) {
         group_by(lab, severity) %>%
         count(n_obs) %>%
         ungroup() %>%
-        pivot_wider(names_from = severity, values_from = n, values_fill = 0) %>%
+        tidyr::pivot_wider(names_from = severity, values_from = n, values_fill = 0) %>%
         mutate(both_severities = nonsevere + severe) %>%
         mutate(prop_nonsevere = nonsevere/n_nonsevere,
                prop_severe = severe/n_severe,
@@ -213,7 +216,7 @@ runAnalysis <- function( dir.output ) {
         mutate(across(contains('n_greater'), sum)) %>%
         dplyr::select(- c(n_obs_patients, patient_num)) %>%
         distinct() %>%
-        pivot_wider(names_from = severity, values_from = each_med_obs_per_patient) %>%
+        tidyr::pivot_wider(names_from = severity, values_from = each_med_obs_per_patient) %>%
         rename('median_obs_per_severe_patient' = severe,
                'median_obs_per_non_severe_patient' = nonsevere) %>%
         dplyr::select(lab, total_obs, total_patients, starts_with('med'), starts_with('n_'))
@@ -261,8 +264,8 @@ runAnalysis <- function( dir.output ) {
                   nonsevere = sum(nonsevere),
                   .groups = 'drop') %>%
         dplyr::select(lab, obs_bin, both_severities, severe, nonsevere) %>%
-        pivot_longer(c(both_severities, severe, nonsevere)) %>%
-        mutate(name = name %>% fct_recode(
+        tidyr::pivot_longer(c(both_severities, severe, nonsevere)) %>%
+        mutate(name = name %>% forcats::fct_recode(
             'All patients' = 'both_severities',
             'Severe patients' = 'severe',
             'Non-severe patients' = 'nonsevere'
@@ -289,8 +292,8 @@ runAnalysis <- function( dir.output ) {
                   prop_nonsevere = sum(prop_nonsevere),
                   .groups = 'drop') %>%
         dplyr::select(lab, obs_bin, prop_both, prop_severe, prop_nonsevere) %>%
-        pivot_longer(c(prop_both, prop_severe, prop_nonsevere)) %>%
-        mutate(name = name %>% fct_recode(
+        tidyr::pivot_longer(c(prop_both, prop_severe, prop_nonsevere)) %>%
+        mutate(name = name %>% forcats::fct_recode(
             'Compared to all patients' = 'prop_both',
             'Compared to all severe patients' = 'prop_severe',
             'Compared to all non-severe patients' = 'prop_nonsevere'
@@ -316,9 +319,9 @@ runAnalysis <- function( dir.output ) {
     per_lab %>%
         dplyr::select(lab, n_obs, severe, nonsevere) %>%
         filter(n_obs <= 90) %>%
-        pivot_longer(c(severe, nonsevere)) %>%
+        tidyr::pivot_longer(c(severe, nonsevere)) %>%
         mutate(lab = forcats::fct_reorder(lab, n_obs),
-               name = name %>% fct_recode(
+               name = name %>% forcats::fct_recode(
                    'Severe patients' = 'severe',
                    'Non-severe patients' = 'nonsevere'
                )) %>%
