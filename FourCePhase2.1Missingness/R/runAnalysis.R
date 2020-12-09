@@ -21,7 +21,7 @@ runAnalysis <- function() {
     ## To Do: implement analytic workflow, saving results to a site-specific
     ## file to be sent to the coordinating site later via submitAnalysis()
     #SET UP
-    ggplot2::theme_set(theme_bw() +
+    ggplot2::theme_set(ggplot2::theme_bw() +
                   ggplot2::theme(legend.title = element_blank(),
                         panel.grid.minor = element_blank()))
 
